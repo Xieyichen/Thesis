@@ -1,0 +1,8 @@
+tqdm==4.28.1
+tensorflow
+datasets
+sklearn
+torch
+transformers
+rouge-score
+nltk
