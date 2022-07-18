@@ -13,6 +13,7 @@ Original file is located at
 #!pip install -r requirements.txt
 # %cd /content/drive/MyDrive/Thesis/RL_scbert_bart_xsum/trl/trl
 #!pip install transformers
+from requests import patch
 from transformers import AutoModelForSeq2SeqLM, BartTokenizer, BartModel, BartForConditionalGeneration, BartConfig, GPT2Config,GPT2LMHeadModel
 from transformers import top_k_top_p_filtering, GPT2Model
 from torch import nn
@@ -25,11 +26,8 @@ import torch
 from transformers import GPT2Tokenizer, AutoModel, BartTokenizer,AutoTokenizer
 import sys
 sys.path.append('D:\\Thesis\\RL_scbert_bart_xsum\\trl\\trl')
-from gpt2 import *
-
-import gpt2
-from bart_xsum import *
-from ppo import *
+import trl.trl.bart_xsum
+import trl.trl.ppo
 from transformers import BartPretrainedModel
 
 import numpy as np
@@ -67,18 +65,21 @@ class BertRegresser(BertPreTrainedModel):
 import os
 
 config = BartConfig('facebook/bart-large-xsum', output_hidden_states=True)
-model_name = 'D:\\Thesis\\RL_scbert_bart_xsum\\bart_large_xsum'
+from  trl.trl.bart_xsum import ValueHead
+#load Valuehead
+hmodel = ValueHead(config).to('cuda')
+#load fine-tuned bart_xsum
+model_name = 'D:\\Thesis\\RL_bart_xsum\\pretrained_model'
 #load preptrained model
 model = AutoModelForSeq2SeqLM.from_pretrained(model_name, output_hidden_states=True).to('cuda')
 #load reference model
 ref_model = AutoModelForSeq2SeqLM.from_pretrained(model_name, output_hidden_states=True).to('cuda')
 #load reward model
 reward_model = BertRegresser.from_pretrained('allenai/scibert_scivocab_uncased')
-model_state, optimizer_state = torch.load('D:\\Thesis\\Models\\reward_model\\checkpoint')
+model_state, optimizer_state = torch.load('D:\\Thesis\\RL_bart_xsum\\reward_model\\checkpoint\\checkpoint')
 reward_model.load_state_dict(model_state)
 reward_model.to('cuda')
-#load Valuehead
-hmodel = ValueHead(config).to('cuda')
+
 
 #@title load tokenizer
 from transformers import AutoTokenizer
@@ -341,6 +342,8 @@ ppo_config = {
         "forward_batch_size": 1,
         "ppo_epochs": 3,
     }
+
+from trl.trl.ppo import PPOTrainer
 ppo_trainer = PPOTrainer(model, ref_model, hmodel, **ppo_config)
 res = ACT_step(gen_title_score_pairs_bestone, 0, len(gen_title_score_pairs_bestone), tokenizer, model, ppo_trainer)
 #res = RL_steps(gen_title_score_pairs_bad, 0, len(gen_title_score_pairs_bad), tokenizer, model, ppo_trainer)
